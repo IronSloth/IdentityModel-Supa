@@ -1756,6 +1756,10 @@ These figures predict AC-70's and AC-127's results. They do not replace running 
 - **When** each in-scope AC's acceptance test is run at the commit that introduced it
 - **Then** each test either fails by assertion there or is a declared regression guard. Unit-level test-first, beyond these acceptance tests, is AC-132.
   - **Regression guards,** expected to pass at `555d31c`: AC-24, AC-32, AC-40, AC-41, AC-72, AC-73, AC-77, AC-82, AC-90, AC-110, AC-112, AC-135 and AC-141.
+    - Two further guards are §3 replacement tests, not ACs (Fred, 2026-10-26: "Yes, declare as guards"). They have no AC ID, so each is identified by its chain and by the removed test it replaces, as listed in §3's removed-test table:
+      - **C11:** the null-only replacement for `AspNetCore.Identity.ExtendedPasswordValidatorTests.HasConsecutiveCharacters_WhenPasswordIsNullOrWhitespace_ExpectArgumentNullException`. `null` already throws at `555d31c`.
+      - **C12:** the `null`-only replacement for `AspNetCore.TagHelpers.NewPasswordTagHelperTests.ProcessIdentityPasswordRules_WhenExtendedOptionsWithInvalidMaxLength_ExpectNoMaxLengthAttribute`. `null` already adds no `maxlength` attribute at `555d31c`.
+    - Like every guard, these must exist before the implementing commit of their chain (WI-28 for C11, WI-31 for C12), and they must pass at the release commit. They are not required to fail first.
   - **Added at Gate 2:**
     - AC-110: the two error codes already exist (`ExtendedPasswordValidator.cs:30,41`).
     - AC-112: the sample's pages already load.
@@ -1880,6 +1884,8 @@ These figures predict AC-70's and AC-127's results. They do not replace running 
   - at the implementing commit and at the release commit, it passes.
 
   Count of work items without such a test == 0.
+
+  A declared regression guard (AC-121's list, including the C11 and C12 replacement tests) cannot be the test that satisfies this AC, because it passes before the fix. It does not cause a failure here either. WI-28 (C11) and WI-31 (C12) are each satisfied by their chain's other, genuinely failing tests: AC-106 to AC-109 for C11, and AC-76 and AC-142 for C12.
 - **Executable as:** integration
 
 #### AC-133 — Sample client-side libraries are at their latest stable version
@@ -2343,7 +2349,8 @@ _Production source and its tests are separate items: the component is `frontend`
 - **Commits.**
   - Test commits use `test(WI-n): … [AC-x, AC-y]`; implementation commits use `feat(WI-n)` or `fix(WI-n)`.
   - **Branches merge without squashing.** AC-121 and AC-132 read the commit order (RK-10).
-  - A tests item is done when every new test compiles and fails by assertion ("red for the right reason"). The exceptions are AC-121's regression guards, which pass: AC-24, AC-32, AC-40, AC-41, AC-72, AC-73, AC-77, AC-82, AC-90, AC-110, AC-112, AC-135 and AC-141.- **Unchanged guardrails.** No test is weakened to make it pass. A finding in an item's output goes back to that item's owner.
+  - A tests item is done when every new test compiles and fails by assertion ("red for the right reason"). The exceptions are AC-121's regression guards, which pass: AC-24, AC-32, AC-40, AC-41, AC-72, AC-73, AC-77, AC-82, AC-90, AC-110, AC-112, AC-135 and AC-141. Two replacement tests with no AC ID are also guards (AC-121; Fred, 2026-10-26). C11 has the null-only replacement for `HasConsecutiveCharacters_WhenPasswordIsNullOrWhitespace_ExpectArgumentNullException`, written in WI-27. C12 has the `null`-only replacement for `ProcessIdentityPasswordRules_WhenExtendedOptionsWithInvalidMaxLength_ExpectNoMaxLengthAttribute`, written in WI-30. Each must exist before its chain's implementing commit (WI-28, WI-31) and pass at release; neither has to fail first.
+- **Unchanged guardrails.** No test is weakened to make it pass. A finding in an item's output goes back to that item's owner.
 
 **Tests removed or renamed (AC-5).** These names exist at `555d31c` and not at release, under the 3.3.1 mapping (prefix `ValhallaTech.Security.IdentityModel.Tests.`). Every other test name survives.
 
@@ -2359,8 +2366,8 @@ _Production source and its tests are separate items: the component is `frontend`
 | `Extensions.ExtendedJsonWebKeyConverterTests.JsonWebKeyConverter_WithPrivateKey_ConvertFromEdDsaSecurityKey` | Default conversion exports `D` | S2: the default is now public-only. Replaced by the AC-26 and AC-28 tests. |
 | `AspNetCore.TagHelpers.NewPasswordTagHelperTests.ctor_WhenOptionsAccessorIsNull_ExpectNullOptions` | Null accessor accepted | Contradicts AC-80. Replaced by the AC-80 test. |
 | `AspNetCore.TagHelpers.NewPasswordTagHelperTests.ctor_WhenOptionsAccessorReturnsNullIsNull_ExpectNullOptions` | Null `.Value` accepted, which led to the late `NullReferenceException` (U3) | G-18: now rejected at construction (3.3.2). Replaced by a WI-32 unit test. |
-| `AspNetCore.Identity.ExtendedPasswordValidatorTests.HasConsecutiveCharacters_WhenPasswordIsNullOrWhitespace_ExpectArgumentNullException` | Null, empty and whitespace input throw | U10: only null throws now. Replaced by a null-only test plus the AC-108 test. |
-| `AspNetCore.TagHelpers.NewPasswordTagHelperTests.ProcessIdentityPasswordRules_WhenExtendedOptionsWithInvalidMaxLength_ExpectNoMaxLengthAttribute` | 0 and -1 silently ignored | GP-9 Q-17: they now throw (AC-142(b)). Replaced by a `null`-only test and the AC-142 tests. |
+| `AspNetCore.Identity.ExtendedPasswordValidatorTests.HasConsecutiveCharacters_WhenPasswordIsNullOrWhitespace_ExpectArgumentNullException` | Null, empty and whitespace input throw | U10: only null throws now. Replaced by a null-only test (WI-27, a C11 regression guard under AC-121) plus the AC-108 test. |
+| `AspNetCore.TagHelpers.NewPasswordTagHelperTests.ProcessIdentityPasswordRules_WhenExtendedOptionsWithInvalidMaxLength_ExpectNoMaxLengthAttribute` | 0 and -1 silently ignored | GP-9 Q-17: they now throw (AC-142(b)). Replaced by a `null`-only test (WI-30, a C12 regression guard under AC-121) and the AC-142 tests. |
 | `AspNetCore.TagHelpers.NewPasswordTagHelperTests.ProcessIdentityPasswordRules_WhenExtendedOptionsWithInvalidMaxConsecutiveChars_ExpectNoMaxConsecutiveCharsAttribute` | -1 silently ignored | Same |
 
 Some kept tests lose theory rows or change assertions, without any name being removed:
@@ -2378,7 +2385,7 @@ The item making each change states it in its PR.
 
 - **domain:** `backend`
 - **depends-on:** none
-- **satisfies:** AC-1, AC-2 (sample), AC-3, AC-45, AC-46, AC-47, AC-48, AC-49 (libraries and sample)
+- **satisfies:** AC-1, AC-2 (sample), AC-45, AC-46, AC-47, AC-48, AC-49 (libraries and sample)
 - **change:**
   - Add `global.json` and the root `Directory.Build.props` (3.3.4).
   - Add `Directory.Packages.props` (CPM) and remove every `TargetFrameworks` and inline `Version`.
@@ -2386,13 +2393,13 @@ The item making each change states it in its PR.
   - **Sample:** Microsoft.AspNetCore.* and EF Core InMemory to latest 10.0.x. Remove `Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation` and its `AddRazorRuntimeCompilation()` call; Hot Reload covers it, and removing it drops the Roslyn payload.
   - Replace `ScottBrady.IdentityModel.sln` with an `.slnx` holding the same projects (renamed in WI-5).
   - Fix compile breaks in `src/` and `samples/` from the Microsoft.IdentityModel 7 → 8 move. No behavior change is intended.
-- **done when:** `dotnet build -c Release` succeeds with only a 10.0 SDK (AC-3). Every `lib/` folder in the packs is `net10.0` (AC-1). `--vulnerable`, `--deprecated` and `--outdated` (direct, stable) report nothing for the libraries and sample (AC-45, AC-46, AC-49). `rg -uu SecurityCodeScan` finds 0 matches (AC-47). Every direct license is an OSI-approved SPDX expression (AC-48).
+- **done when:** `dotnet build -c Release` succeeds with only a 10.0 SDK for each **library and the sample project**, built individually. The whole solution is not expected to build yet: with NuGetAudit at high and warnings as errors, the test project's AutoFixture advisories fail its restore until WI-2 removes them, so AC-3 belongs to WI-2. Every `lib/` folder in the packs is `net10.0` (AC-1). `--vulnerable`, `--deprecated` and `--outdated` (direct, stable) report nothing for the libraries and sample (AC-45, AC-46, AC-49). `rg -uu SecurityCodeScan` finds 0 matches (AC-47). Every direct license is an OSI-approved SPDX expression (AC-48).
 
 #### WI-2 — Migrate the test project to .NET 10 and AwesomeAssertions
 
 - **domain:** `tests`
 - **depends-on:** WI-1
-- **satisfies:** AC-2 (tests), AC-4, AC-45, AC-46, AC-48, AC-49 (tests)
+- **satisfies:** AC-2 (tests), AC-3, AC-4, AC-45, AC-46, AC-48, AC-49 (tests)
 - **change:**
   - Retarget through the props.
   - **Resolves D-1 (Fred, 2026-10-25: "We're using AwesomeAssertions"):** replace FluentAssertions 6.12.2 with AwesomeAssertions **9.6.0** (Apache-2.0), its latest stable. Change `using FluentAssertions;` to `using AwesomeAssertions;` in the 19 files, and fix every 6→7 API rename the compiler reports across the 157 `.Should()` calls. Shouldly and FluentAssertions 7.2.2 lose: Shouldly needs every assertion rewritten, and 7.2.2 is not FluentAssertions' latest stable (AC-49).
@@ -2400,7 +2407,7 @@ The item making each change states it in its PR.
   - Bump `xunit` (stays on the 2.9.x package ID), `xunit.runner.visualstudio`, `Microsoft.NET.Test.Sdk`, `Moq`, `System.IdentityModel.Tokens.Jwt` and `Microsoft.AspNetCore.Authentication.JwtBearer` to latest stable. Add `coverlet.collector`.
   - Move `TestJwtBearerHandler` off the `ISystemClock` constructor if .NET 10 removed it.
   - xunit.v3 was considered and lost for now: changed lifetimes and an executable test host are not a mechanical swap under the deadline (RK-12).
-- **done when:** All 250 tests pass on runtime 10.0.x (AC-4). The test-name set is identical to `555d31c`'s, and no assertion is weakened. `--vulnerable`, `--deprecated` and `--outdated` are clean for the test project.
+- **done when:** The full solution builds with `dotnet build -c Release` at the repository root, with only a 10.0 SDK selected (AC-3). All 250 tests pass on runtime 10.0.x (AC-4). The test-name set is identical to `555d31c`'s, and no assertion is weakened. `--vulnerable`, `--deprecated` and `--outdated` are clean for the test project.
 
 #### WI-3 — Move CI to .NET 10 with least-privilege tokens
 
@@ -2662,8 +2669,9 @@ The item making each change states it in its PR.
 - **change:**
   - Acceptance and unit tests.
   - AC-111 registers a French describer subclass through `AddErrorDescriber<T>()`.
-  - AC-110 is a regression guard (AC-121).
-- **done when:** AC-106 to AC-109 and AC-111 fail by assertion; AC-110 passes.
+  - Also writes the null-only replacement for the removed `HasConsecutiveCharacters_WhenPasswordIsNullOrWhitespace_ExpectArgumentNullException`.
+  - Regression guards (AC-121): AC-110, and that C11 replacement test (`null` already throws at `555d31c`).
+- **done when:** AC-106 to AC-109 and AC-111 fail by assertion. AC-110 and the C11 replacement test pass.
 
 #### WI-28 — Use the describer, fix whitespace, scan linearly (implements C11)
 
@@ -2690,8 +2698,9 @@ The item making each change states it in its PR.
   - Acceptance tests, plus unit tests for each options rule and message.
   - **One DryIoc test (D-8, Fred, 2026-10-25: "Yes, sample + one test").** It builds the AC-74 `ServiceCollection` (`AddIdentityCore<IdentityUser>()` plus the single step), creates the provider through `DryIoc.Microsoft.DependencyInjection`'s `DryIocServiceProviderFactory`, and asserts that the resolved `UserManager<IdentityUser>` reports `PasswordTooLong` for a 65-character password.
   - The test project takes `DryIoc.Microsoft.DependencyInjection` **6.2.0** and `DryIoc.dll` **5.4.3** as test-only references; the libraries take no DryIoc dependency.
-  - AC-77 is a guard.
-- **done when:** AC-74, 75, 76, 142 and the DryIoc test fail by assertion; AC-77 passes.
+  - Also writes the `null`-only replacement for the removed `ProcessIdentityPasswordRules_WhenExtendedOptionsWithInvalidMaxLength_ExpectNoMaxLengthAttribute`.
+  - Regression guards (AC-121): AC-77, and that C12 replacement test (`null` already adds no `maxlength` attribute at `555d31c`).
+- **done when:** AC-74, 75, 76, 142 and the DryIoc test fail by assertion. AC-77 and the C12 replacement test pass.
 
 #### WI-31 — Implement the single step and reject invalid options on both paths (implements C12)
 
@@ -3105,7 +3114,7 @@ No AC observable below the browser lacks a chain, and every chain has a named se
 | --- | --- | --- | --- |
 | AC-1, AC-10, AC-11, AC-16, AC-17 | Unzip each `.nupkg`; read `lib/` folders and the nuspec; byte-compare the packed `LICENSE` | build | CI-u (pack step), Gate |
 | AC-2 | `dotnet msbuild -getProperty:TargetFramework -getProperty:TargetFrameworks` on the test and sample projects | build | CI-u, Gate |
-| AC-3, AC-4, AC-57 | `dotnet build -c Release --no-incremental` (0 warnings), then `dotnet test` with a TRX logger: failed and skipped both 0, runtime 10.0.x | build | CI, Gate |
+| AC-3, AC-4, AC-57 | Full-solution `dotnet build -c Release --no-incremental` at the repository root (0 warnings), then `dotnet test` with a TRX logger: failed and skipped both 0, runtime 10.0.x. AC-3 and AC-4 first close in WI-2; AC-57 in WI-9. | build | CI, Gate |
 | AC-5 | Diff test FQN sets (`555d31c` vs release, under the 3.3.1 mapping) against the §3.4 removed-test table | lint | Gate |
 | AC-6, AC-58 | `yq` over `.github/workflows/*.yml` | lint | Gate (and on review of WI-3 and WI-44) |
 | AC-7 | `gh run view <id> --json jobs`, plus the test-step logs | integration | Gate (CI run of the release commit) |
