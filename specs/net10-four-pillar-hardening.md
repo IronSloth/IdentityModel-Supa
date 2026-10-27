@@ -334,11 +334,11 @@ _Solution-space questions raised during grilling and not asked. The Architect re
 - D-7 Which tools handle dependency updates and code formatting.
 - D-8 Whether the sample app uses DryIoc, and which UI framework version it uses. — _[Annotation added after Stage 0, not part of the verbatim record: **the UI framework part is decided by Fred, GP-8.** Whether to use DryIoc is still open.]_
 - D-9 Solution file format and shared build-property layout.
-- D-10 Whether to keep the three-OS CI matrix and the CodeQL workflow.
+- D-10 Whether to keep the three-OS CI matrix and the CodeQL workflow. — _[Annotation added after Stage 0, not part of the verbatim record: **revised by Fred, GP-11.**]_
 - D-11 The mechanism for localizing password validation error messages.
 
 #### Gate 1 pre-review decisions
-_Fred's decisions of 2026-10-25, asked before Gate 1, at Gate 1 (GP-9) and at Gate 2 (GP-10), and relayed by the /spec coordinator. Recorded as relayed, and cited elsewhere as GP-n. Three are decided and fixed for the Architect: SimpleBase and the Base62 cap (GP-2, which decides D-3), the sample's UI framework (GP-8, which decides the UI framework part of D-8), and the private feed (GP-10, which decides D-2). Every other library or tool named here is Fred's stated preference, and that choice stays with the Architect under the D-item named. For example, GP-1's Renovate is a lean for D-7._
+_Fred's decisions of 2026-10-25, asked before Gate 1, at Gate 1 (GP-9), at Gate 2 (GP-10) and after approval (GP-11), and relayed by the /spec coordinator. Recorded as relayed, and cited elsewhere as GP-n. Three are decided and fixed for the Architect: SimpleBase and the Base62 cap (GP-2, which decides D-3), the sample's UI framework (GP-8, which decides the UI framework part of D-8), and the private feed (GP-10, which decides D-2). Every other library or tool named here is Fred's stated preference, and that choice stays with the Architect under the D-item named. For example, GP-1's Renovate is a lean for D-7._
 
 - **GP-1** (Q-1, Q-20). The deadline stays hard, and the full 1.0.0 scope ships by 2026-11-10, not a prerelease. Fred, verbatim: "Keep it hard. Addendum: with BouncyCastle being version 2.6.2 and the current C# version being 2.7.0, we should probably make sure all of the dependencies are up-to-date, or we can have RenovateBot take care of it." The coordinator recorded the new goal as: every dependency is at its latest stable version at release, and stays current automatically afterwards. Fred leans toward Renovate for D-7.
 - **GP-2** (Q-12, D-3). **Decided by Fred:** Base62 uses SimpleBase (https://github.com/ssg/SimpleBase), meaning `SimpleBase.Base62.Default`, and its input length is capped. The version was 5.6.4 when the decision was made. Under GP-10 it now follows G-9's latest-stable rule and is not pinned. This decides D-3, and the Architect treats it as fixed. Fred first suggested SimpleBase. On learning that it is still quadratic, he chose the cap plus a time budget: a documented maximum input length, longer input rejected, a time budget at that maximum, and measurably faster than today. He then confirmed both as decisions, verbatim: "Make sure we're aware that we're using SimpleBase and the cap decision. I've only seen SimpleBase mentioned once." Facts presented to him (coordinator's scratch probe, 2026-10-25, not in the repo):
@@ -368,6 +368,14 @@ _Fred's decisions of 2026-10-25, asked before Gate 1, at Gate 1 (GP-9) and at Ga
     - Fred's no-jQuery rule means no jQuery library files, no references to jQuery, and no package that depends on it. It does not cover the optional detection text inside Bootstrap's own bundle.
     - Measured on 2026-10-25 *(per the /spec coordinator)*: `bootstrap.bundle.min.js` 5.3.8 contains 19 "jQuery" mentions, all of them `window.jQuery` checks or the optional `jQueryInterface` hooks. `bootstrap.min.css` contains none. Bootstrap 5 does not need jQuery.
   - **SimpleBase version:** "Latest stable (Recommended)". SimpleBase follows the G-9 latest-stable rule like every other dependency and is no longer pinned to 5.6.4. The library choice itself (GP-2) is unchanged.
+- **GP-11** (D-10, Fred, 2026-10-27, relayed by the /spec coordinator). This revises the earlier D-10 resolution, which kept all three operating systems.
+  - **CI operating systems:** "Ubuntu only (Recommended)".
+  - **Ubuntu version:** "Follow ubuntu-latest", instead of pinning Ubuntu 26.04.
+  - **CodeQL:** stays.
+  - **Reasons Fred accepted:**
+    - BouncyCastle is pure C# with no OS crypto, so OS-specific bugs are unlikely.
+    - Windows is already covered by local runs on ODIN01.
+    - macOS was the slowest job and delays Gate 0.
 
 ---
 
@@ -2415,11 +2423,15 @@ The item making each change states it in its PR.
 - **depends-on:** WI-1, WI-2
 - **satisfies:** AC-6, AC-7, AC-58 (R-21 lands early because it is one block per file)
 - **change:**
-  - `dotnetcore.yml`: top-level `permissions: contents: read`. `actions/setup-dotnet` with `dotnet-version: '10.0.x'`. Restore, build and test on the **kept** `ubuntu-latest`/`macos-latest`/`windows-latest` matrix. Pack and upload the artifact on ubuntu only.
+  - `dotnetcore.yml`: top-level `permissions: contents: read`. `actions/setup-dotnet` with `dotnet-version: '10.0.x'`. Restore, build, test, pack and upload the artifact in one job on `runs-on: ubuntu-latest`. The label follows GitHub's current Ubuntu image (Fred, 2026-10-27: "Follow ubuntu-latest"). Remove the `matrix.os` strategy and the `if: matrix.os == 'ubuntu-latest'` conditions on the pack and upload steps.
   - `codeql-analysis.yml`: kept. `dotnet-version: '10.0.x'`; job permissions `contents: read`, `actions: read`, `security-events: write`.
   - **Network.** The test job needs outbound HTTPS to `registry.npmjs.org` (WI-36's `Category=Network` tests, AC-138 and AC-143) and to jsDelivr (LibMan restore on build, WI-37). GitHub-hosted runners have both. The job does not filter out `Category=Network` tests. A registry outage fails the run loudly, naming the URL, and the run is re-run, never muted.
-  - **Resolves D-10.** The three-OS matrix stays because consumers run the libraries on all three, and its cost is nil on a public repository. CodeQL stays because its dataflow analysis finds things the in-build analyzers do not.
-- **done when:** AC-6 and AC-58 pass, and a branch run is green on all three OSes with runtime 10.0.x. WI-46 re-checks AC-7 on the release commit.
+  - **Resolves D-10 (Fred, 2026-10-27: "Ubuntu only (Recommended)"; CodeQL stays).**
+    - **Ubuntu only.** The library's crypto is pure-C# BouncyCastle with no OS crypto, so OS-specific defects are unlikely.
+    - **Windows coverage.** Windows is covered because every build and test also runs locally on ODIN01 (Windows).
+    - **macOS dropped.** macOS was the slowest job to queue, and Gate 0 waits on every job.
+    - **CodeQL** stays because its dataflow analysis finds things the in-build analyzers do not.
+- **done when:** AC-6 and AC-58 pass, and a branch run of the single `ubuntu-latest` job is green with runtime 10.0.x. WI-46 re-checks AC-7 on the release commit, where "every matrix job" is that one job.
 
 #### WI-4 — Write the failing identity and API-shape tests (chain C1)
 
@@ -3006,7 +3018,7 @@ _Ordered phases with the work items in each and what gates the next phase._
 - These items run serially on purpose. The rename, the reformat and the annotation pass each touch every file, so running any of them beside other work guarantees merge conflicts (RK-9).
 - In parallel: WI-3 (after WI-2), WI-10 (any time), and the Fred-only items U-1 to U-5, which should start at Gate 2 approval.
 - **Gate 0:**
-  - CI green on all three OSes on .NET 10;
+  - CI green on `ubuntu-latest` on .NET 10, and the suite green locally on ODIN01 (Windows);
   - all 250 tests pass under the new names;
   - 0 warnings with analyzers, nullable and docs enforced;
   - CSharpier clean.
@@ -3074,7 +3086,7 @@ The deadline is fixed (C-20). If Gate 1 is at risk, the PRD has nothing left to 
 | RK-12 | A chosen package is deprecated or fails on `net10.0` before release: `xunit` 2.x, `Microsoft.Web.LibraryManager.Build`, or the DryIoc 6.2.0 adapter (AC-46, AC-49). | low | med | Each item's done-when runs `--deprecated` and a `net10.0` build. Fallbacks: xunit.v3; a committed CSS plus an npm `package.json` that Renovate reads; reporting DryIoc to Fred, with no preview substituted. | WI-2, WI-35, WI-37 |
 | RK-13 | A new stable release of a dependency lands between implementation and release and fails AC-49 on the day, or a new SimpleBase release changes Base62 behavior or speed. | med | med | Renovate is active before release (WI-39). WI-46 re-runs AC-49 on the release date, and bumps go through a normal PR and CI. SimpleBase is unpinned (GP-10). A bump must pass the C7 suite (AC-33 to AC-36, AC-124 to AC-126) in CI. A bump after WI-43 re-runs the P-a and P-b benchmarks (AC-70, AC-127) before WI-46; a budget overrun is reported to Fred. | WI-39, WI-43, WI-46 |
 | RK-16 | **Resolved at Gate 2, round 2.** AC-137 as first written could not pass: its search also hit the test source and `.git/`. §2 now closes the exclusion list with `.git/` and the one named test file, and checks that file separately. | — | — | No action left. WI-36 places the assertions at the excluded path, and that file meets AC-137's separate check. | WI-36 |
-| RK-14 | **Operations: monitoring.** A defect in 1.0.0 surfaces only in consumers; the library emits no telemetry, by design (NG-6). | med | med | Post-release signals and where they are watched: CI on every `master` push (all three OSes, coverage, CodeQL); Dependabot alerts and the Renovate dashboard (U-3, WI-39; M-2, M-4, M-10); private vulnerability reports (U-2; M-9); the M-1 adoption search. No new signal needs building. | WI-3, WI-39, WI-51 |
+| RK-14 | **Operations: monitoring.** A defect in 1.0.0 surfaces only in consumers; the library emits no telemetry, by design (NG-6). | med | med | Post-release signals and where they are watched: CI on every `master` push (`ubuntu-latest`, coverage, CodeQL), with Windows covered by local runs on ODIN01; Dependabot alerts and the Renovate dashboard (U-3, WI-39; M-2, M-4, M-10); private vulnerability reports (U-2; M-9); the M-1 adoption search. No new signal needs building. | WI-3, WI-39, WI-51 |
 | RK-15 | **Operations: rollback.** A defect found after WI-46 publishes 1.0.0. | low | high | Before WI-46, rollback is `git revert`. After WI-46, rollback is **forward-only**: the 1.0.0 version is immutable once restored. Consumers pin back to upstream 4.1.0, which stays on nuget.org, and a 1.0.1 ships through the same workflow. The point of no return is WI-46, gated as in §3.5. | WI-46 |
 
 **Operations:** monitoring: RK-14; backup: not applicable, since no step destroys or rewrites data (no database, cache or persisted state, §3.2; the repository rename is a `git mv` recorded in history); rollback: RK-15.
@@ -3105,8 +3117,8 @@ _Every AC maps to an executable check, or is explicitly recorded as manual._
 No AC observable below the browser lacks a chain, and every chain has a named seam. ACs without a chain are `build`, `lint`, out-of-process `integration` (CI runs, feed, GitHub API, measurement, scratch consumers), or Fred-only.
 
 **AC → check.** Levels follow the PM's `Executable as` throughout; none is changed. Key to "Where it runs":
-- **CI** means `dotnet test` on the three-OS matrix.
-- **CI-u** means the ubuntu CI job only.
+- **CI** means `dotnet test` in the single `ubuntu-latest` job (D-10).
+- **CI-u** means a step that runs once in that same job, after the tests. The label is kept so existing rows still read correctly.
 - **Gate** means WI-46's release-gate run on the release commit.
 - **Bench** means WI-43 on Fred's workstation.
 
@@ -3196,7 +3208,7 @@ Unused tags: `database`, `redis`, `security`, `openfga` and `docker`. These libr
 | D-7 Update and format tools | **Decided:** Renovate (WI-39) for updates; CSharpier (WI-7) for formatting; GitHub Dependabot alerts for advisories (U-3). | §3.4 WI-7, WI-39 |
 | D-8 Sample DI and UI | **UI fixed by Fred (GP-8, GP-10):** Bootstrap 5 latest stable, CSS and JS bundle shipped unmodified, no jQuery. Delivered through LibMan, with a Renovate regex manager over `libman.json`. **DryIoc decided by Fred (2026-10-25, "Yes, sample + one test"):** the sample runs on `DryIoc.Microsoft.DependencyInjection` 6.2.0 with `DryIoc.dll` 5.4.3, plus one DryIoc test of the single step. | §3.4 WI-35, WI-30, WI-37 |
 | D-9 Solution format and build layout | **Decided:** `.slnx`, `global.json`, a root plus a `src/` `Directory.Build.props`, central package management, and renamed directories. | §3.3.4, WI-1, WI-5 |
-| D-10 CI matrix and CodeQL | **Decided:** keep both. | §3.4 WI-3 |
+| D-10 CI matrix and CodeQL | **Decided by Fred (2026-10-27):** CI runs on `ubuntu-latest` only, following the label ("Ubuntu only (Recommended)", "Follow ubuntu-latest"). CodeQL stays. Windows is covered by local runs on ODIN01. | §3.4 WI-3 |
 | D-11 Message localization mechanism | **Decided:** an `ExtendedIdentityErrorDescriber` subclass through `AddErrorDescriber<T>()`. | §3.3.2, WI-26 |
 
 #### Raised for Gate 2
